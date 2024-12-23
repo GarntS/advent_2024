@@ -21,7 +21,7 @@ impl DirectionSteps {
     fn to_step_pair(&self) -> (isize, isize) {
         match *self {
             DirectionSteps::HorizLeft => (-1, 0),
-            DirectionSteps::HorizRight => (0, 0),
+            DirectionSteps::HorizRight => (1, 0),
             DirectionSteps::VertUp => (0, -1),
             DirectionSteps::VertDown => (0, 1),
             DirectionSteps::DiagUL => (-1, -1),
@@ -89,8 +89,14 @@ fn find_radially(arr: &[[char; 140]; 140], point: (usize, usize), pattern: &str)
         for i in 0..s_len {
             // do signed math then cast back
             let cur_point: (usize, usize) = (
-                (point.0 as isize + (step_pair.0 * i as isize) as isize) as usize,
-                (point.0 as isize + (step_pair.0 * i as isize) as isize) as usize,
+                point
+                    .0
+                    .checked_add_signed(step_pair.0 * i as isize)
+                    .unwrap(),
+                point
+                    .1
+                    .checked_add_signed(step_pair.1 * i as isize)
+                    .unwrap(),
             );
 
             if char_at_point(arr, cur_point) != pattern.chars().nth(i).unwrap() {
@@ -103,6 +109,102 @@ fn find_radially(arr: &[[char; 140]; 140], point: (usize, usize), pattern: &str)
     }
 
     n_found
+}
+
+fn find_smartass(
+    arr: &[[char; 140]; 140],
+    point: (usize, usize),
+    center_char: char,
+    corner_chars: [char; 2],
+) -> bool {
+    enum SmartassState {
+        INIT,
+        A,
+        AA,
+        AAB,
+        AB,
+        ABB,
+    }
+
+    if point.0 < 1 || point.0 >= 139 || point.1 < 1 || point.1 >= 139 {
+        return false;
+    }
+
+    if char_at_point(arr, point) != center_char {
+        return false;
+    }
+
+    // order: UL, UR, BR, BL
+    let corners = [
+        (point.0 - 1, point.1 - 1),
+        (point.0 + 1, point.1 - 1),
+        (point.0 + 1, point.1 + 1),
+        (point.0 - 1, point.1 + 1),
+    ];
+
+    let mut search_state = SmartassState::INIT;
+    let mut a: Option<char> = None;
+    let mut b: Option<char> = None;
+    for corner in corners {
+        let char_at_corner = char_at_point(arr, corner);
+        match search_state {
+            SmartassState::INIT => {
+                if char_at_corner == corner_chars[0] {
+                    a = Some(corner_chars[0]);
+                    b = Some(corner_chars[1]);
+                    search_state = SmartassState::A;
+                } else if char_at_corner == corner_chars[1] {
+                    a = Some(corner_chars[1]);
+                    b = Some(corner_chars[0]);
+                    search_state = SmartassState::A;
+                } else {
+                    return false;
+                }
+            }
+            SmartassState::A => {
+                if char_at_corner == a.unwrap() {
+                    search_state = SmartassState::AA;
+                } else if char_at_corner == b.unwrap() {
+                    search_state = SmartassState::AB;
+                } else {
+                    return false;
+                }
+            }
+            SmartassState::AA => {
+                if char_at_corner == b.unwrap() {
+                    search_state = SmartassState::AAB;
+                } else {
+                    return false;
+                }
+            }
+            SmartassState::AAB => {
+                if char_at_corner == b.unwrap() {
+                    // found AABB, success!
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+            SmartassState::AB => {
+                if char_at_corner == b.unwrap() {
+                    search_state = SmartassState::ABB;
+                } else {
+                    return false;
+                }
+            }
+            SmartassState::ABB => {
+                if char_at_corner == a.unwrap() {
+                    // found ABBA, success!
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+    }
+
+    // pretty sure this should be unreachable.
+    unreachable!("your state machine sucks");
 }
 
 fn main() {
@@ -123,4 +225,15 @@ fn main() {
         }
     }
     println!("Part 1: {}", found_count);
+
+    // part 2
+    found_count = 0;
+    for start_x in 0..140 {
+        for start_y in 0..140 {
+            if find_smartass(&hamfist_array, (start_x, start_y), 'A', ['M', 'S']) {
+                found_count += 1;
+            }
+        }
+    }
+    println!("Part 2: {}", found_count);
 }
