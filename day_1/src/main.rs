@@ -1,3 +1,9 @@
+/* file:    main.rs
+ * author:  garnt
+ * date:    12/20/2024
+ * desc:    Advent of Code 2024 day 1.
+ */
+
 fn iter_cmp(lefts: &Vec<i32>, rights: &Vec<i32>) -> i32 {
     let mut similar: i32 = 0;
     for l_val in lefts {
